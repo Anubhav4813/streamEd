@@ -1,0 +1,29 @@
+{
+  "name": "streamed",
+  "version": "1.0.0",
+  "description": "A live study platform where students connect, stream and solve doubts together in real time.",
+  "license": "ISC",
+  "author": "Anubhav",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "build": "cd frontend && npm install && npm run build"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.4.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "livekit-client": "^2.18.5",
+    "livekit-server-sdk": "^2.15.1",
+    "pg": "^8.13.1",
+    "socket.io": "^4.8.3",
+    "zod": "^4.3.6"
+  }
+}

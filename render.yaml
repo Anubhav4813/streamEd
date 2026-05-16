@@ -1,0 +1,34 @@
+# render.yaml — Render Blueprint for StreamEd
+# Docs: https://docs.render.com/blueprint-spec
+databases:
+  - name: streamed-db
+    plan: free
+    databaseName: streamed
+    user: streamed_user
+
+services:
+  - type: web
+    name: streamed
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: streamed-db
+          property: connectionString
+      - key: CLIENT_ORIGIN
+        sync: false  # Set manually in Render dashboard to your Render URL
+      - key: JWT_SECRET
+        generateValue: true
+      - key: LIVEKIT_URL
+        sync: false  # Set manually
+      - key: LIVEKIT_API_KEY
+        sync: false  # Set manually
+      - key: LIVEKIT_API_SECRET
+        sync: false  # Set manually

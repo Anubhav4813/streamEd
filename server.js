@@ -28,7 +28,25 @@ const httpServer = createServer(app);
 
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
 
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com"],
+            imgSrc: ["'self'", "data:", "blob:", "https://ui-avatars.com", "https://*.livekit.cloud"],
+            mediaSrc: ["'self'", "blob:", "mediastream:", "https://*.livekit.cloud"],
+            connectSrc: ["'self'", "wss://*.livekit.cloud", "https://*.livekit.cloud", "wss://", "https://ui-avatars.com"],
+            workerSrc: ["'self'", "blob:"],
+            childSrc: ["'self'", "blob:"],
+            frameSrc: ["'self'"],
+        },
+    },
+    crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: false,
+    crossOriginResourcePolicy: false,
+}));
 
 app.use(
     cors({

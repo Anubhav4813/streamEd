@@ -79,7 +79,21 @@ app.use("/api/community", communityRouter);
 
 // Serve Vite frontend build in production
 const distPath = path.join(__dirname, "frontend", "dist");
-app.use(express.static(distPath));
+app.use(
+    express.static(distPath, {
+        index: false,
+        setHeaders: (res, filePath) => {
+            if (filePath.endsWith(".html")) {
+                res.setHeader("Cache-Control", "no-cache");
+                return;
+            }
+
+            if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+                res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+            }
+        },
+    })
+);
 
 const io = new SocketIOServer(httpServer, {
     cors: {
@@ -260,7 +274,21 @@ async function startServer() {
     app.locals.db = db;
 
     // SPA fallback — serve index.html for any non-API route
-    app.get("/{*path}", (req, res) => {
+    app.get("/{*path}", (req, res, next) => {
+        const requestPath = req.path || "/";
+        const isBackendRoute =
+            requestPath.startsWith("/api") ||
+            requestPath.startsWith("/auth") ||
+            requestPath.startsWith("/live") ||
+            requestPath.startsWith("/health") ||
+            requestPath.startsWith("/socket.io");
+        const isAssetRequest = path.extname(requestPath) !== "";
+
+        if (isBackendRoute || isAssetRequest) {
+            return next();
+        }
+
+        res.setHeader("Cache-Control", "no-cache");
         res.sendFile(path.join(distPath, "index.html"));
     });
 

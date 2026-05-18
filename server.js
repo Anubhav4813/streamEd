@@ -27,11 +27,33 @@ dotenv.config();
 const app = express();
 const httpServer = createServer(app);
 
-const ALLOWED_ORIGINS = [
-    process.env.CLIENT_ORIGIN,
-    "http://localhost:5173",
-    "http://localhost:3000",
-].filter(Boolean);
+const ALLOWED_ORIGINS = new Set(
+    [
+        process.env.CLIENT_ORIGIN,
+        process.env.RENDER_EXTERNAL_URL,
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ].filter(Boolean)
+);
+
+const hasExplicitProductionOrigin = Boolean(process.env.CLIENT_ORIGIN || process.env.RENDER_EXTERNAL_URL);
+
+function isAllowedOrigin(origin) {
+    if (!origin) {
+        return true;
+    }
+
+    if (ALLOWED_ORIGINS.has(origin)) {
+        return true;
+    }
+
+    // If deployment origin was not configured, keep the app usable instead of failing all browser requests.
+    if (process.env.NODE_ENV === "production" && !hasExplicitProductionOrigin) {
+        return true;
+    }
+
+    return false;
+}
 
 app.use(helmet({
     contentSecurityPolicy: {
@@ -56,8 +78,7 @@ app.use(helmet({
 app.use(
     cors({
         origin: function (origin, callback) {
-            // Allow same-origin requests (no origin header) and allowed origins
-            if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+            if (isAllowedOrigin(origin)) {
                 callback(null, true);
             } else {
                 callback(new Error("Not allowed by CORS"));
@@ -84,7 +105,7 @@ app.use(express.static(distPath));
 const io = new SocketIOServer(httpServer, {
     cors: {
         origin: function (origin, callback) {
-            if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+            if (isAllowedOrigin(origin)) {
                 callback(null, true);
             } else {
                 callback(new Error("Not allowed by CORS"));

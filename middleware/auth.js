@@ -4,9 +4,7 @@ export function auth(req, res, next) {
     const bearer = req.headers.authorization || "";
     const token = bearer.startsWith("Bearer ") ? bearer.slice(7) : null;
     if (!token) {
-        // DEV Fallback so frontend can test without logging in
-        req.user = { id: "dev-user-123", username: "Alex M.", email: "alex@example.com" };
-        return next();
+        return res.status(401).json({ error: "Authentication required" });
     }
 
     try {

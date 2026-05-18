@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
-import { AlertCircle, Maximize, LayoutDashboard, Expand, Shrink, Send, Settings } from 'lucide-react';
+import { AlertCircle, Maximize, LayoutDashboard, Expand, Shrink, Send, Settings, MessageSquare, Video } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -72,13 +72,13 @@ function MyVideoUI() {
 
   return (
     <div ref={containerRef} className="flex flex-col h-full w-full relative group bg-black">
-      <div className="absolute top-4 right-4 z-20 flex gap-2">
+      <div className="absolute top-2 right-2 lg:top-4 lg:right-4 z-20 flex gap-2">
         <div className="relative">
           <button 
             onClick={() => setIsQualityOpen(!isQualityOpen)}
             className="bg-gray-900/80 hover:bg-gray-900 text-white p-2 rounded-lg backdrop-blur-md transition-all flex items-center gap-2 text-sm shadow-md border border-gray-700"
           >
-            <Settings size={16} /> Quality: {quality}
+            <Settings size={16} /> <span className="hidden sm:inline">Quality:</span> {quality}
           </button>
           {isQualityOpen && (
             <div className="absolute top-full right-0 mt-2 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 flex flex-col overflow-hidden w-36">
@@ -95,11 +95,11 @@ function MyVideoUI() {
           >
             {focusMode ? (
               <>
-                <LayoutDashboard size={16} /> Grid View
+                <LayoutDashboard size={16} /> <span className="hidden sm:inline">Grid View</span>
               </>
             ) : (
               <>
-                <Maximize size={16} /> Focus Screen
+                <Maximize size={16} /> <span className="hidden sm:inline">Focus Screen</span>
               </>
             )}
           </button>
@@ -110,11 +110,11 @@ function MyVideoUI() {
         >
           {isFullscreen ? (
             <>
-              <Shrink size={16} /> Exit Fullscreen
+              <Shrink size={16} /> <span className="hidden sm:inline">Exit Fullscreen</span>
             </>
           ) : (
             <>
-              <Expand size={16} /> Fullscreen
+              <Expand size={16} /> <span className="hidden sm:inline">Fullscreen</span>
             </>
           )}
         </button>
@@ -154,7 +154,14 @@ const ViewStream = () => {
   
   const [chatMessage, setChatMessage] = useState('');
   const [messages, setMessages] = useState([]);
+  const [mobileTab, setMobileTab] = useState('video'); // 'video' or 'chat'
   const { darkMode, token } = useAppContext();
+  const chatEndRef = useRef(null);
+
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   useEffect(() => {
     if (token) {
@@ -176,9 +183,11 @@ const ViewStream = () => {
     };
 
     socket.on('chat:new', handleNewMessage);
+    socket.on('chat:cleared', () => setMessages([]));
 
     return () => {
       socket.off('chat:new', handleNewMessage);
+      socket.off('chat:cleared');
       socket.disconnect();
     };
   }, [roomId, token]);
@@ -243,18 +252,48 @@ const ViewStream = () => {
     );
   }
 
+  const unreadCount = messages.length;
+
   return (
-    <div className={`p-6 lg:p-8 max-w-7xl mx-auto flex flex-col h-[calc(100vh-100px)] ${darkMode ? 'text-white' : ''}`}>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-          Live Session: <span className="text-brand text-xl">{roomId}</span>
+    <div className={`p-3 sm:p-6 lg:p-8 max-w-7xl mx-auto flex flex-col h-[calc(100vh-73px)] lg:h-[calc(100vh-100px)] pb-16 lg:pb-8 ${darkMode ? 'text-white' : ''}`}>
+      {/* Header */}
+      <div className="flex justify-between items-center mb-3 sm:mb-6">
+        <h2 className={`text-lg sm:text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          <span className="hidden sm:inline">Live Session: </span><span className="text-brand text-sm sm:text-xl">{roomId}</span>
         </h2>
-        <button onClick={() => navigate('/watch')} className="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg font-bold shadow-sm hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">Leave</button>
+        <button onClick={() => navigate('/watch')} className="bg-gray-200 text-gray-800 px-4 sm:px-6 py-2 rounded-lg font-bold shadow-sm hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 text-sm sm:text-base">Leave</button>
       </div>
 
-      <div className="flex-1 flex flex-col lg:flex-row gap-6 overflow-hidden">
-        {/* Video Player */}
-        <div className="flex-1 bg-black rounded-2xl overflow-hidden relative shadow-lg flex items-center justify-center border-4 border-gray-800 min-h-[300px]">
+      {/* Mobile Tab Switcher */}
+      <div className="lg:hidden flex gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl mb-3 w-full">
+        <button
+          onClick={() => setMobileTab('video')}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+            mobileTab === 'video' 
+              ? `${darkMode ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'} shadow-sm` 
+              : `${darkMode ? 'text-gray-400' : 'text-gray-500'}`
+          }`}
+        >
+          <Video size={16} /> Stream
+        </button>
+        <button
+          onClick={() => setMobileTab('chat')}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 relative ${
+            mobileTab === 'chat' 
+              ? `${darkMode ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'} shadow-sm` 
+              : `${darkMode ? 'text-gray-400' : 'text-gray-500'}`
+          }`}
+        >
+          <MessageSquare size={16} /> Chat
+          {mobileTab !== 'chat' && unreadCount > 0 && (
+            <span className="absolute top-1 right-3 w-2 h-2 bg-brand rounded-full animate-pulse"></span>
+          )}
+        </button>
+      </div>
+
+      <div className="flex-1 flex flex-col lg:flex-row gap-3 sm:gap-6 min-h-0 overflow-hidden">
+        {/* Video Player — hidden on mobile when chat tab is active */}
+        <div className={`flex-1 bg-black rounded-2xl overflow-hidden relative shadow-lg flex items-center justify-center border-4 border-gray-800 min-h-0 ${mobileTab === 'chat' ? 'hidden lg:flex' : 'flex'}`}>
           {roomToken && liveKitUrl ? (
             <LiveKitRoom
               video={false}
@@ -277,13 +316,13 @@ const ViewStream = () => {
           )}
         </div>
 
-        {/* Chat Window */}
-        <div className={`w-full lg:w-80 flex flex-col rounded-2xl shadow-sm border h-[400px] lg:h-auto ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-          <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'} font-bold`}>
+        {/* Chat Window — hidden on mobile when video tab is active */}
+        <div className={`w-full lg:w-80 flex flex-col rounded-2xl shadow-sm border min-h-0 ${mobileTab === 'video' ? 'hidden lg:flex' : 'flex flex-1'} ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+          <div className={`p-3 sm:p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'} font-bold text-sm sm:text-base shrink-0`}>
             Live Chat
           </div>
           
-          <div className="flex-1 p-4 overflow-y-auto space-y-4">
+          <div className="flex-1 p-3 sm:p-4 overflow-y-auto space-y-3 sm:space-y-4 min-h-0">
             {messages.map((msg, i) => {
               const username = msg.user || msg.senderName || 'Unknown';
               const isHost = username.includes('Host');
@@ -294,9 +333,10 @@ const ViewStream = () => {
                 </div>
               );
             })}
+            <div ref={chatEndRef} />
           </div>
 
-          <form onSubmit={handleSendMessage} className={`p-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex gap-2`}>
+          <form onSubmit={handleSendMessage} className={`p-3 sm:p-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'} flex gap-2 shrink-0`}>
             <input 
               type="text" 
               value={chatMessage}
@@ -304,7 +344,7 @@ const ViewStream = () => {
               placeholder="Type a message..." 
               className={`flex-1 px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-1 focus:ring-brand ${darkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-gray-50 border-gray-300 text-gray-900'}`}
             />
-            <button type="submit" className="bg-brand text-white p-2 rounded-lg hover:bg-indigo-700 transition-colors">
+            <button type="submit" className="bg-brand text-white p-2 rounded-lg hover:bg-indigo-700 transition-colors shrink-0">
               <Send size={18} />
             </button>
           </form>

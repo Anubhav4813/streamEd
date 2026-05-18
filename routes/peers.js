@@ -1,7 +1,20 @@
 import express from "express";
 import jwt from "jsonwebtoken";
+import { RoomServiceClient } from "livekit-server-sdk";
 
 export const peersRouter = express.Router();
+
+let roomService = null;
+function getRoomService() {
+    if (!roomService) {
+        roomService = new RoomServiceClient(
+            process.env.LIVEKIT_URL,
+            process.env.LIVEKIT_API_KEY,
+            process.env.LIVEKIT_API_SECRET
+        );
+    }
+    return roomService;
+}
 
 // Optional auth middleware – doesn't block, just populates req.user if token present
 function optionalAuth(req, res, next) {
@@ -37,14 +50,29 @@ peersRouter.get("/", optionalAuth, async (req, res) => {
         const { q, category, sort } = req.query;
 
         let peers = await db.all('SELECT * FROM peers');
+        
+        let activeRooms = [];
+        try {
+            activeRooms = await getRoomService().listRooms();
+        } catch (err) {
+            console.error("Failed to fetch live rooms for peers:", err);
+        }
 
-        const mapped = peers.map(p => ({
-            ...p,
-            strongIn: p.strongIn ? p.strongIn.split(',').map(s => s.trim()).filter(Boolean) : [],
-            needsHelpWith: p.needsHelpWith ? p.needsHelpWith.split(',').map(s => s.trim()).filter(Boolean) : [],
-            isOnline: Boolean(p.isOnline),
-            badges: p.badges ? p.badges.split(',').map(s => s.trim()).filter(Boolean) : []
-        }));
+        const mapped = peers.map(p => {
+            // Check if this peer is hosting a room. Room names look like: stream-UserName-id
+            // We can match it simply by seeing if a room name contains the peer's id (first 6 chars)
+            const shortId = p.id.substring(0, 6);
+            const liveRoom = activeRooms.find(r => r.name.includes(`-${shortId}`));
+
+            return {
+                ...p,
+                strongIn: p.strongIn ? p.strongIn.split(',').map(s => s.trim()).filter(Boolean) : [],
+                needsHelpWith: p.needsHelpWith ? p.needsHelpWith.split(',').map(s => s.trim()).filter(Boolean) : [],
+                isOnline: Boolean(p.isOnline) || !!liveRoom, // Force online if they are streaming
+                badges: p.badges ? p.badges.split(',').map(s => s.trim()).filter(Boolean) : [],
+                liveRoomId: liveRoom ? liveRoom.name : null
+            };
+        });
 
         // Filter by category
         let result = mapped;

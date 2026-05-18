@@ -142,19 +142,26 @@ const FindPeer = () => {
   );
 };
 
+import { Link } from 'react-router-dom';
+import { Play } from 'lucide-react';
+
 const PeerCard = ({ peer, isRequested, onConnect }) => {
   return (
-    <div className="group bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full relative overflow-hidden">
+    <div className={`group bg-white rounded-3xl p-6 border ${peer.liveRoomId ? 'border-red-200 shadow-red-50' : 'border-gray-100'} shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full relative overflow-hidden`}>
       {/* Top Banner Accent */}
-      <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-brand to-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+      <div className={`absolute top-0 left-0 w-full h-1.5 ${peer.liveRoomId ? 'bg-gradient-to-r from-red-500 to-orange-400 opacity-100' : 'bg-gradient-to-r from-brand to-indigo-400 opacity-0 group-hover:opacity-100'} transition-opacity`}></div>
       
       {/* Header Info */}
       <div className="flex items-start gap-4 mb-4">
         <div className="relative">
-          <img src={peer.avatar} className="w-16 h-16 rounded-2xl object-cover shadow-sm ring-1 ring-gray-100" alt={peer.name} />
-          {peer.isOnline && (
+          <img src={peer.avatar} className={`w-16 h-16 rounded-2xl object-cover shadow-sm ring-2 ${peer.liveRoomId ? 'ring-red-500 ring-offset-2' : 'ring-gray-100'}`} alt={peer.name} />
+          {peer.liveRoomId ? (
+            <div className="absolute -bottom-2 -left-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 animate-pulse">
+              <span className="w-1.5 h-1.5 bg-white rounded-full"></span> LIVE
+            </div>
+          ) : peer.isOnline ? (
             <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-brand-green border-2 border-white rounded-full"></div>
-          )}
+          ) : null}
         </div>
         <div className="flex-1">
           <div className="flex justify-between items-start">
@@ -172,7 +179,7 @@ const PeerCard = ({ peer, isRequested, onConnect }) => {
       </div>
 
       {/* Badges */}
-      {peer.badges.length > 0 && (
+      {peer.badges && peer.badges.length > 0 && (
         <div className="flex gap-2 mb-4">
           {peer.badges.map(badge => (
             <span key={badge} className="px-2 py-1 bg-brand/5 text-brand text-xs font-semibold rounded-md border border-brand/10">
@@ -212,14 +219,25 @@ const PeerCard = ({ peer, isRequested, onConnect }) => {
       </div>
 
       {/* Actions */}
-      <div className="mt-auto">
+      <div className="mt-auto flex flex-col gap-2">
+        {peer.liveRoomId && (
+          <Link 
+            to={`/watch/${peer.liveRoomId}`}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold bg-red-500 text-white hover:bg-red-600 hover:shadow-md hover:shadow-red-500/20 active:scale-95 transition-all duration-300"
+          >
+            <Play size={18} className="fill-white" />
+            <span>Watch Live Stream</span>
+          </Link>
+        )}
         <button 
           onClick={onConnect}
           disabled={isRequested}
           className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold transition-all duration-300 ${
             isRequested 
               ? 'bg-brand-green/10 text-brand-green cursor-default' 
-              : 'bg-brand text-white hover:bg-indigo-700 hover:shadow-md hover:shadow-brand/20 active:scale-95'
+              : peer.liveRoomId 
+                ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' 
+                : 'bg-brand text-white hover:bg-indigo-700 hover:shadow-md hover:shadow-brand/20 active:scale-95'
           }`}
         >
           {isRequested ? (

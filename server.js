@@ -20,13 +20,18 @@ import { healthRouter } from "./routes/health.js";
 import { peersRouter } from "./routes/peers.js";
 import { schedulesRouter } from "./routes/schedules.js";
 import { dashboardSessionsRouter } from "./routes/dashboard-sessions.js";
+import { communityRouter } from "./routes/community.js";
 
 dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
 
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
+const ALLOWED_ORIGINS = [
+    process.env.CLIENT_ORIGIN,
+    "http://localhost:5173",
+    "http://localhost:3000",
+].filter(Boolean);
 
 app.use(helmet({
     contentSecurityPolicy: {
@@ -35,7 +40,7 @@ app.use(helmet({
             scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            imgSrc: ["'self'", "data:", "blob:", "https://ui-avatars.com", "https://*.livekit.cloud"],
+            imgSrc: ["'self'", "data:", "blob:", "https://ui-avatars.com", "https://*.livekit.cloud", "https://picsum.photos", "https://i.pravatar.cc", "https://fastly.picsum.photos"],
             mediaSrc: ["'self'", "blob:", "mediastream:", "https://*.livekit.cloud"],
             connectSrc: ["'self'", "wss://*.livekit.cloud", "https://*.livekit.cloud", "wss://", "https://ui-avatars.com"],
             workerSrc: ["'self'", "blob:"],
@@ -50,7 +55,14 @@ app.use(helmet({
 
 app.use(
     cors({
-        origin: CLIENT_ORIGIN,
+        origin: function (origin, callback) {
+            // Allow same-origin requests (no origin header) and allowed origins
+            if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+                callback(null, true);
+            } else {
+                callback(new Error("Not allowed by CORS"));
+            }
+        },
         credentials: true,
     })
 );
@@ -63,6 +75,7 @@ app.use("/health", healthRouter);
 app.use("/api/peers", peersRouter);
 app.use("/api/schedules", schedulesRouter);
 app.use("/api/dashboard-sessions", dashboardSessionsRouter);
+app.use("/api/community", communityRouter);
 
 // Serve Vite frontend build in production
 const distPath = path.join(__dirname, "frontend", "dist");
@@ -70,7 +83,13 @@ app.use(express.static(distPath));
 
 const io = new SocketIOServer(httpServer, {
     cors: {
-        origin: CLIENT_ORIGIN,
+        origin: function (origin, callback) {
+            if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+                callback(null, true);
+            } else {
+                callback(new Error("Not allowed by CORS"));
+            }
+        },
         credentials: true,
     },
     transports: ["websocket", "polling"],
@@ -86,9 +105,7 @@ function socketAuth(socket, next) {
             (socket.handshake.headers.authorization || "").replace(/^Bearer\s+/i, "");
 
         if (!token) {
-            // DEV Fallback so frontend can test Socket without logging in
-            socket.user = { id: "dev-user-123", username: "Host (You)", email: "alex@example.com" };
-            return next();
+            return next(new Error("Authentication required"));
         }
 
         const user = jwt.verify(token, process.env.JWT_SECRET);
@@ -135,10 +152,16 @@ io.on("connection", (socket) => {
         let history = [];
         try {
             if (db) {
-                history = await db.all(
-                    'SELECT * FROM messages WHERE "roomName" = ? ORDER BY ts ASC LIMIT 100',
-                    [roomName]
-                );
+                if (isHost) {
+                    // Host joining means a new session: wipe previous stream's messages
+                    await db.run('DELETE FROM messages WHERE "roomName" = ?', [roomName]);
+                    socket.to(roomName).emit("chat:cleared");
+                } else {
+                    history = await db.all(
+                        'SELECT * FROM messages WHERE "roomName" = ? ORDER BY ts ASC LIMIT 100',
+                        [roomName]
+                    );
+                }
             }
         } catch (e) {
             console.error("DB error fetching history:", e);

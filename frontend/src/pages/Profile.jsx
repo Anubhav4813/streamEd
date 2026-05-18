@@ -107,12 +107,6 @@ const Profile = () => {
               </div>
             </div>
 
-            <button
-              onClick={logout}
-              className="px-5 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl font-bold text-sm transition-colors shadow-sm shrink-0"
-            >
-              Sign Out
-            </button>
           </div>
         </div>
 

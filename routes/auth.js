@@ -36,6 +36,27 @@ authRouter.post("/register", async (req, res) => {
             [id, username, email, passwordHash]
         );
 
+        // Auto-create a peer profile so they appear in the Find a Peer page
+        const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=random`;
+        await db.run(
+            'INSERT INTO peers (id, name, avatar, major, category, rating, reviews, distance, bio, "strongIn", "needsHelpWith", "isOnline", badges) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+                id, 
+                username, 
+                avatarUrl, 
+                'Undeclared', 
+                'All', 
+                5.0, 
+                0, 
+                'Just joined', 
+                `Hi, I'm ${username}! I just joined StreamEd and I'm looking for study buddies.`, 
+                '', 
+                '', 
+                true, 
+                'New Member'
+            ]
+        );
+
         return res.status(201).json({ ok: true });
     } catch (e) {
         return res.status(500).json({ error: e.message });
@@ -59,7 +80,7 @@ authRouter.post("/login", async (req, res) => {
         const token = jwt.sign(
             { id: user.id, sub: user.id, username: user.username, email: user.email, role: user.role },
             process.env.JWT_SECRET,
-            { expiresIn: "1h" }
+            { expiresIn: "7d" }
         );
 
         return res.json({ token, user: { id: user.id, username: user.username, email: user.email, role: user.role, karma: user.karma, rating: user.rating, bio: user.bio || '' } });
@@ -108,9 +129,12 @@ authRouter.patch("/profile", auth, async (req, res) => {
         const db = req.app.locals.db;
         if (bio !== undefined) {
             await db.run('UPDATE users SET bio = ? WHERE id = ?', [bio, req.user.id]);
+            await db.run('UPDATE peers SET bio = ? WHERE id = ?', [bio, req.user.id]);
         }
         if (username !== undefined && username.trim().length >= 2) {
-            await db.run('UPDATE users SET username = ? WHERE id = ?', [username.trim(), req.user.id]);
+            const cleanName = username.trim();
+            await db.run('UPDATE users SET username = ? WHERE id = ?', [cleanName, req.user.id]);
+            await db.run('UPDATE peers SET name = ? WHERE id = ?', [cleanName, req.user.id]);
         }
         const user = await db.get('SELECT id, username, email, role, karma, rating, bio FROM users WHERE id = ?', [req.user.id]);
         res.json({ user });

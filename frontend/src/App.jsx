@@ -17,7 +17,7 @@ const ProtectedRoute = ({ children }) => {
   const { token, user, authChecked } = useAppContext();
   
   if (!token) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   // Show loading while validating saved token
@@ -40,7 +40,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="/auth" element={<Auth />} />
+      <Route path="/login" element={<Auth />} />
+      <Route path="/auth" element={<Navigate to="/login" replace />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/watch" element={<ProtectedRoute><LiveStreams /></ProtectedRoute>} />
       <Route path="/watch/:roomId" element={<ProtectedRoute><ViewStream /></ProtectedRoute>} />

@@ -114,7 +114,7 @@ const TopNav = () => {
               <div className={`p-2 border-t ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}>
                 <Menu.Item>
                   {({ active }) => (
-                    <button onClick={() => { localStorage.clear(); window.location.href = '/auth'; }} className={`${active ? 'bg-red-50 text-red-600' : 'text-red-500'} flex w-full items-center px-4 py-2 text-sm rounded-lg font-medium`}>
+                    <button onClick={() => { localStorage.clear(); window.location.href = '/login'; }} className={`${active ? 'bg-red-50 text-red-600' : 'text-red-500'} flex w-full items-center px-4 py-2 text-sm rounded-lg font-medium`}>
                       Sign Out
                     </button>
                   )}

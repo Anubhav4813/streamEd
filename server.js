@@ -259,7 +259,6 @@ async function startServer() {
 
     app.locals.db = db;
 
-    // SPA fallback — serve index.html for any non-API route
     app.get("/{*path}", (req, res) => {
         res.sendFile(path.join(distPath, "index.html"));
     });

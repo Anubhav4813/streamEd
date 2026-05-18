@@ -6,8 +6,9 @@ export const AppProvider = ({ children }) => {
   const [karma, setKarma] = useState(789);
   const [darkMode, setDarkMode] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [token, setTokenState] = useState(localStorage.getItem('token') || null);
+  const [token, setTokenState] = useState(() => localStorage.getItem('token') || null);
   const [user, setUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(() => !localStorage.getItem('token'));
 
   const setToken = (newToken) => {
     if (newToken) {
@@ -16,6 +17,7 @@ export const AppProvider = ({ children }) => {
       localStorage.removeItem('token');
     }
     setTokenState(newToken);
+    setAuthChecked(!newToken);
   };
 
   const logout = () => {
@@ -25,38 +27,63 @@ export const AppProvider = ({ children }) => {
 
   // Fetch current user if token exists
   useEffect(() => {
-    if (token && !user) {
-      fetch('/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`
+    if (!token) {
+      return;
+    }
+
+    if (user) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    fetch('/auth/me', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      signal: controller.signal
+    })
+      .then(async res => {
+        if (!res.ok) {
+          throw new Error(`Auth check failed (${res.status})`);
         }
-      })
-      .then(res => {
-        if (res.status === 401 || res.status === 403 || res.status === 404) {
-          setToken(null);
-          return null;
+
+        const contentType = res.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          throw new Error('Invalid auth response format');
         }
+
         return res.json();
       })
       .then(data => {
-        if (!data) return;
-        if (data.user) {
-          setUser({
-            ...data.user,
-            avatar: 'https://ui-avatars.com/api/?name=' + data.user.username,
-            role: data.user.role || 'user',
-            rating: data.user.rating ?? 5.0
-          });
-          if (data.user.karma !== undefined) {
-            setKarma(data.user.karma);
-          }
+        if (!data?.user) {
+          throw new Error('Invalid user payload');
+        }
+
+        setUser({
+          ...data.user,
+          avatar: 'https://ui-avatars.com/api/?name=' + data.user.username,
+          role: data.user.role || 'user',
+          rating: data.user.rating ?? 5.0
+        });
+
+        if (data.user.karma !== undefined) {
+          setKarma(data.user.karma);
         }
       })
       .catch(err => {
-        // Network error (e.g. backend not ready) — keep token, don't log out
-        console.warn('Could not reach auth server, will retry on next action.', err.message);
+        if (err.name === 'AbortError') return;
+        console.warn('Auth bootstrap failed, clearing stale session token.', err.message);
+        setToken(null);
+        setUser(null);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setAuthChecked(true);
+        }
       });
-    }
+
+    return () => controller.abort();
   }, [token, user]);
 
   // Load settings from localStorage
@@ -108,7 +135,8 @@ export const AppProvider = ({ children }) => {
       darkMode, toggleDarkMode,
       notificationsEnabled, setNotificationsEnabled,
       user, setUser,
-      token, setToken, logout
+      token, setToken, logout,
+      authChecked
     }}>
       {children}
     </AppContext.Provider>

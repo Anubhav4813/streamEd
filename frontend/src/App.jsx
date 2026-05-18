@@ -14,19 +14,23 @@ import Layout from './components/Layout';
 import { AppProvider, useAppContext } from './context/AppContext';
 
 const ProtectedRoute = ({ children }) => {
-  const { token, user } = useAppContext();
+  const { token, user, authChecked } = useAppContext();
   
   if (!token) {
     return <Navigate to="/auth" replace />;
   }
 
-  // Show a loading state or the layout while fetching user
-  if (!user) {
+  // Show loading while validating saved token
+  if (!authChecked && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
       </div>
     );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
   }
 
   return <Layout>{children}</Layout>;
